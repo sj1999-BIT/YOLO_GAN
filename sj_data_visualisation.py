@@ -52,6 +52,10 @@ def find_label(input_index_string):
         return "invalid label index"
 
 
+def generate_random_colour_scheme_for_labels(label_dict):
+    return [get_random_color() for i in range(len(label_dict.keys()))]
+
+
 def get_label_color(index):
     index = int(index)
     # Check if the index is within the valid range (0 to 2 for RGB)
@@ -70,8 +74,13 @@ def get_random_color():
     return [int(random.random() * 255) for i in range(3)]
 
 
-def label_img(color_list, label_dict, label_data, img, is_data_from_detection=False):
+def label_img(label_dict, label_data, img, is_data_from_detection=False, color_list=None):
     img_height, img_width, _ = img.shape
+
+    # generate random colour if not colour specified
+    if color_list is None:
+        color_list = generate_random_colour_scheme_for_labels(label_dict)
+
     for label in label_data:
         # if its detected label, added in detection and confidence
         label_index, x_center, y_center, box_width, box_height, confidence = label
@@ -105,59 +114,14 @@ def create_combined_labelled_img(image_filepath, label_dict, original_color_list
         # Load the image
         img = cv2.imread(image_filepath)
 
-        img = label_img(original_color_list, label_dict, original_label_data, img)
-        img = label_img(detected_color_list, label_dict, detected_label_data, img, is_data_from_detection=True)
+        img = label_img(label_dict, original_label_data, img, color_list=original_color_list)
+        img = label_img(label_dict, detected_label_data, img, is_data_from_detection=True,
+                        color_list=detected_color_list)
 
         # Save the image with bounding boxes
         cv2.imwrite(output_path, img)
         print(f'image saved at {output_path}')
     print("finished")
-
-
-# def create_save_labelled_img(image_folder, label_folder, output_labelled_image_folder):
-#     list_cur_dir()
-#     # prepare the folder
-#     prepare_folder(output_labelled_image_folder)
-#
-#     # List all YOLO label files
-#     label_files = [f for f in os.listdir(label_folder) if f.endswith('.txt')]
-#
-#     for label_file in label_files:
-#         image_name = os.path.splitext(label_file)[0] + ".jpg"
-#         image_path = os.path.join(image_folder, image_name)
-#         if not os.path.exists(image_path):
-#             print(f"wrong path, no image {image_name} existed in folder {image_folder}")
-#         output_path = os.path.join(output_labelled_image_folder, image_name)
-#
-#         if os.path.exists(image_path):
-#             # Load the image
-#             img = cv2.imread(image_path)
-#             img_height, img_width, _ = img.shape
-#
-#             # Read YOLO label file
-#             with open(os.path.join(label_folder, label_file), 'r') as label:
-#                 for line in label:
-#                     parts = line.strip().split()
-#                     label_index, x_center, y_center, box_width, box_height = map(float, parts)
-#
-#                     # Convert YOLO format to OpenCV format
-#                     x1 = int((x_center - box_width / 2) * img_width)
-#                     y1 = int((y_center - box_height / 2) * img_height)
-#                     x2 = int((x_center + box_width / 2) * img_width)
-#                     y2 = int((y_center + box_height / 2) * img_height)
-#
-#                     # Draw bounding box
-#                     # Add class label
-#                     label_text = f"Class: {find_label(label_index)}"
-#                     color = get_label_color(label_index)
-#                     thickness = 2
-#                     img = cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness)
-#                     cv2.putText(img, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness)
-#
-#             # Save the image with bounding boxes
-#             cv2.imwrite(output_path, img)
-#             print(f'image saved at {output_path}')
-#     print("finished")
 
 
 def map_over_graph(csv_file_path):

@@ -38,11 +38,11 @@ def read_labels_from_file(file_path, have_confident=True):
         with open(file_path, 'r') as file:
                 for line in file:
                     parts = line.strip().split()
-                    if have_confident:
+                    if len(parts) == 6:
                         class_id, x, y, w, h, confid = map(float, parts)
-                    else:
+                    elif len(parts) == 5:
                         class_id, x, y, w, h = map(float, parts)
-                        confid = 0
+                        confid = 1
                     labels.append((int(class_id), x, y, w, h, confid))
     except FileNotFoundError:
         print(f"File not found: {file_path}")
@@ -58,6 +58,16 @@ def label_size(label):
 def get_label_index(label):
     return int(label[0])
 
+# change the label inedx, used for false positive data
+def set_label_index(new_label_index, label):
+    """
+
+    :param new_label_index: must be an integer
+    :param label:
+    :return:
+    """
+    list(label)[0] = new_label_index
+    return label
 
 def get_label_confid(label, alt_mode=True):
     if alt_mode:
@@ -225,10 +235,10 @@ def merge_overlapping_labels(labels, threshold=0.8):
     return new_labels
 
 
-def write_labels_to_file(file_path, labels):
+def write_labels_to_file(file_path, labels, write_confidence=True):
     with open(file_path, 'w') as file:
         for label in labels:
-            if len(label) == 6:
+            if len(label) == 6 and write_confidence:
                 file.write(f"{int(label[0])} {label[1]} {label[2]} {label[3]} {label[4]} {label[5]}\n")
             else:
                 file.write(f"{int(label[0])} {label[1]} {label[2]} {label[3]} {label[4]}\n")
@@ -253,6 +263,24 @@ def create_finalised_detected_data(target_folder, label_list):
 
     # generate the coprresponding labelled images
     create_save_labelled_img(original_img_folder, os.path.join(target_folder, "detected"), label_list)
+
+
+def generate_false_positive_training_data(detection_data_path, original_data_path, threshold=0.2,
+                                          output_path="false_positive_dataset"):
+    """
+    Aim is to generate training data based on all the false positives
+    :param threshold: a value to determine if the labels overlaps
+    :param detection_data_path: labels which were detected by the model
+    :param original_data_path: ground truth labels of the same dataset, assume background images have no label file
+    :param output_path: folder containing the images and labels for false positives. All labels have same label index: 0.
+    :return:
+    """
+
+    # in case original data has no empty label file for background iamge
+    generate_empty_label_files(original_data_path)
+
+
+    return output_path
 
 
 # if __name__ == '__main__':

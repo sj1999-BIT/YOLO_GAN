@@ -3,10 +3,39 @@ import random
 import shutil
 import yaml
 
+
+def get_labels_file_name(img_filename):
+    # Get the base name of the image file (without extension)
+    image_name = os.path.splitext(img_filename)[0]
+
+    # Create the text file name by adding ".txt" to the image name
+    text_file_name = image_name + ".txt"
+
+    return text_file_name
+
 # only print if code is testing
 def test_log(log_stmt, is_log_printing):
     if is_log_printing:
         print(log_stmt)
+
+
+def copy_img_folder(source_folder, destination_folder, is_log_printing=False):
+    # Ensure the destination folder exists
+    if not os.path.exists(destination_folder):
+        os.makedirs(destination_folder)
+
+    # Get a list of all files in the source folder
+    files = os.listdir(source_folder)
+
+    # Filter only image files (you can extend the list of extensions if needed)
+    image_files = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+    # Copy each image file to the destination folder
+    for image_file in image_files:
+        source_path = os.path.join(source_folder, image_file)
+        destination_path = os.path.join(destination_folder, image_file)
+        shutil.copy2(source_path, destination_path)
+        test_log(f"Copied: {image_file}", is_log_printing=is_log_printing)
 
 # function generate true based on input percentage
 def random_true(true_chance=10):
@@ -51,6 +80,15 @@ def clear_folder(folder_path, is_log_printing=False):
                 test_log(f"Skipping non-file item: {filename}", is_log_printing)
     else:
         test_log("Folder does not exist or is not a directory.", is_log_printing)
+
+
+def remove_folder(folder_path):
+    try:
+        # Use shutil.rmtree to remove the folder and its contents
+        shutil.rmtree(folder_path)
+        print(f"Folder '{folder_path}' removed successfully.")
+    except OSError as e:
+        print(f"Error: {e}")
 
 
 def create_folder(folder_path, is_log_printing=False):
@@ -194,26 +232,35 @@ def separate_data(folder_path, output_folder_path, val_percent=10.0, test_percen
     # List all label files in the source folder
     img_files = [f for f in os.listdir(img_folder)]
 
-    test_count = 0
-    train_count = 0
     val_count = 0
+    is_val_empty = True
+    val_out_path = os.path.join(output_folder_path, "val")
 
+    test_count = 0
+    is_test_empty = True
+    test_out_path = os.path.join(output_folder_path, "test")
+
+
+    # allocate data to validation testset and test dataset until both folder are not empty
+    while is_val_empty or is_test_empty:
+        for img_file in img_files:
+            if random_true(int(val_percent)):
+                transfer_yolo_data(img_file, folder_path, val_out_path)
+                val_count += 1
+                is_val_empty = False
+            elif random_true(int(test_percent)):
+                transfer_yolo_data(img_file, folder_path, test_out_path)
+                test_count += 1
+                is_test_empty = False
+
+    # transfer the rest to train folder
     for img_file in img_files:
+        if img_file in os.listdir(val_out_path) or img_file in os.listdir(test_out_path):
+            continue
+        out_folder_path = os.path.join(output_folder_path, "train")
+        transfer_yolo_data(img_file, folder_path, out_folder_path)
 
-        if random_true():
-            out_folder_path = os.path.join(output_folder_path, "val")
-            transfer_yolo_data(img_file, folder_path, out_folder_path)
-            val_count += 1
-        elif random_true():
-            out_folder_path = os.path.join(output_folder_path, "test")
-            transfer_yolo_data(img_file, folder_path, out_folder_path)
-            test_count += 1
-        else:
-            out_folder_path = os.path.join(output_folder_path, "train")
-            transfer_yolo_data(img_file, folder_path, out_folder_path)
-            train_count += 1
-
-    test_log(f'totol data separated: train has {train_count}, val has {val_count}, test has {test_count}', is_log_printing)
+    test_log(f'total data separated: train has {len(img_files)-val_count-test_count}, val has {val_count}, test has {test_count}', is_log_printing)
 
 
 def create_yaml_file(data_path, label_dict, yaml_filename="lighthaus_data.yaml", is_log_printing=False):
